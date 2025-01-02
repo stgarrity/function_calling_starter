@@ -1,4 +1,5 @@
 import os
+import random
 import requests
 from serpapi.google_search import GoogleSearch
 from functools import wraps
@@ -104,8 +105,15 @@ def get_showtimes(title, location):
 
     return formatted_showtimes
 
+# NB: this model only sort of works, it is better with the system message in app.py but wanted to mess around with it/
 def buy_ticket(theater, movie, showtime):
-    return f"Ticket purchased for {movie} at {theater} for {showtime}."
+    confirmation_code = str(random.randint(0, 1000000))
+    return f"""Tickets are available for {movie} at {theater} for {showtime} for $10.
+    Confirm that we want to proceed with this purchase for this show at this price, 
+    and if we do, generate a function call for confirm_ticket_purchase with the confirmation code {confirmation_code}."""
+
+def confirm_ticket_purchase(confirmation_code):
+    return f"Your ticket was successfully purchased for the movie you requested."
 
 @memoize_api_call()
 def get_reviews(movie_id):
