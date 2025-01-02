@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from dotenv import load_dotenv
 import chainlit as cl
 from movie_functions import get_now_playing_movies, get_showtimes, buy_ticket
@@ -58,6 +59,25 @@ You have access to the following functions:
     }
   }
 }
+{
+  "get_showtimes": {
+    "description": "Fetches showtimes for a specific movie in a given location",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "The title of the movie"
+        },
+        "location": {
+          "type": "string",
+          "description": "The location of the movie"
+        }
+      },
+      "required": ["title", "location"]
+    }
+  }
+}
 </available_functions>
 
 To use any function, generate a function call in JSON format, wrapped in \
@@ -108,6 +128,10 @@ admit it and offer to provide related information you are confident about
    - Keep responses concise but informative
    - If a question is unclear, ask for clarification before answering
 
+If you are concerned about the date (eg. if a movie seems to be playing in the future),
+remember that all the results from functions are relative to today, and that the
+year is the most important part of the date. Eg. if a movie was released in 
+December 2024, it has already been released in January of 2025.
 Example interactions:
 
 1. User: "What movies are playing in theaters right now?"
@@ -175,7 +199,7 @@ def extract_tag_content(text: str, tag_name: str) -> str | None:
 @traceable
 @cl.on_chat_start
 def on_chat_start():    
-    message_history = [{"role": "system", "content": SYSTEM_PROMPT}]
+    message_history = [{"role": "system", "content": SYSTEM_PROMPT + f"\nToday's date is {datetime.now().strftime('%Y-%m-%d')}."}]
     cl.user_session.set("message_history", message_history)
 
 @cl.on_message
@@ -186,7 +210,7 @@ async def on_message(message: cl.Message):
     
     await prompt_model()
 
-
+@traceable
 async def prompt_model():
     message_history = cl.user_session.get("message_history", [])
 
@@ -210,6 +234,7 @@ async def prompt_model():
         function_call = extract_tag_content(response_message.content, "function_call")
         function_call_json = json.loads(function_call)
         
+        print(function_call_json)
         # Execute the function based on the name
         if function_call_json["name"] == "get_now_playing":
             print("get_now_playing")
@@ -217,10 +242,10 @@ async def prompt_model():
         
         elif function_call_json["name"] == "get_showtimes":
             print("get_showtimes")
-            title = function_call_json.get("args", {}).get("title")
-            location = function_call_json.get("args", {}).get("location")
+            title = function_call_json.get("arguments", {}).get("title")
+            location = function_call_json.get("arguments", {}).get("location")
             function_results = get_showtimes(title, location)
-        
+            print(function_results)
         elif function_call_json["name"] == "buy_ticket":
             print("buy_ticket")
             theater = function_call_json.get("args", {}).get("theater")
